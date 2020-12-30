@@ -1,23 +1,15 @@
 # import modules
 from tkinter import *  
-import locale
-import threading
-import time
-import requests
-import json
-import traceback
-# import feedparser
-import datetime
+import requests, json, traceback, datetime, pytz
 from PIL import Image, ImageTk
-from contextlib import contextmanager
 from collections import defaultdict
 
+DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
+MAIN_KEYS = ['current','daily','alerts']
 # class WeatherFunc(Frame):
 class WeatherFunc:
     ''' Creates and maintains the weather module on the smart mirror '''
-    DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
-    MAIN_KEYS = ['current','forecast','alerts']
-
+    
     # def __init__(self, parent, *args, **kwargs):
         # Frame.__init__(self, parent, bg='black')
     def __init__(self):
@@ -32,36 +24,28 @@ class WeatherFunc:
         ------
         None
         '''
-        self.location = '' # dict
+        self.location = ''
         self.apikey = ''
         self.units = ''
 
-        self.weather_data = d1 = {key:{} for key in MAIN_KEYS}
+        self.weather_data = {}
         self.weather_data['current'] = {
+                                        'dt' : '',
                                         'temp' : '',
                                         'sunrise' : '',
                                         'sunset' : '',
-                                        'feel_like' : '',
+                                        'feels_like' : '',
                                         'humidity' : '',
                                         'uvi' : '',
                                         'visibility' : '',
                                         'wind_speed' : '',
-                                        'wind_gust' : '',
                                         'weather' : {}
         }
 
-        self.weather_data['forecast'] = {
-                                        'temp' : {'day':''},
-                                        'feel_like' : {'day':''},
-                                        'weather' : {}
-        }
+        self.weather_data['daily'] = []
 
-        self.weather_data['alerts'] = {
-                                        'event' : '',
-                                        'start' : '',
-                                        'end' : ''
-        }
-            
+        self.weather_data['alerts'] = []
+
         # self.degreeFrm = Frame(self, bg="black")
         # self.degreeFrm.pack(side=TOP, anchor=W)
         # self.temperatureLbl = Label(self.degreeFrm, font=('Helvetica', xlarge_text_size), fg="white", bg="black")
@@ -93,20 +77,23 @@ class WeatherFunc:
         self.apikey = config['apikeys']['openweather']
 
     @staticmethod
-    def reformat_time(unix_utc:str) -> str:
+    def reformat_time(unix_utc:str, final_format:str='%A %b %d %Y %H:%M:%S') -> str:
         '''
         Convert unix UTC time into a datetime object
 
         Parameters
         ----------
-        unix_utc : (string) unix UTC time
+        unix_utc : (str) unix UTC time
+        final_format : (str) parameters indicating which parts of time related information to show 
+                (default = '%A %m %d %Y %H:%M:%S')
+                'Y' - year, 'm'/'b'/'B' - month, 'd' - date, 'A'/'a' - day, 'H' - hour, 'M' - minute, 'S' - second
 
         Return
         ------
-        formatted_time : (string) converted from datetime object into the form 'YYYY-MM-DD HH:MM:SS'
+        formatted_time : (string) time information shown as the partial or full form of '(day) DD-MM-YYYY HH:MM:SS'
         '''
-        formatted_time = datetime.utcfromtimestamp(int(unix_utc)).strftime('%Y-%m-%d %H:%M:%S')
-        return formatted_time
+        full_formatted_time = datetime.datetime.utcfromtimestamp(int(unix_utc)).replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
+        return full_formatted_time.strftime(final_format)
 
     def get_weather(self) -> int:
         '''
@@ -122,19 +109,13 @@ class WeatherFunc:
         '''
         success_code = -1
         try:
+            print(self.apikey)
             # get weather
-            weather_req_url = f"https://api.openweathermap.org/data/2.5/onecall?\
-                lat={self.location['lat']}&\
-                lon={self.location['long']}&\
-                units={self.units}&\
-                exclude=hourly,minutely&\
-                appid={self.apikey}"
-
+            weather_req_url = f"https://api.openweathermap.org/data/2.5/onecall?lat={self.location['lat']}&lon={self.location['long']}&units={self.units}&exclude=hourly,minutely&appid={self.apikey}"
             r = requests.get(weather_req_url)
             weather_obj = json.loads(r.text)
-            print(weather_obj)
 
-            if not all(key in weather_obj for key in MAIN_KEYS):
+            if not all(key in weather_obj for key in MAIN_KEYS[:-1]): # not always an alert available
                 print('API call failed')
                 success_code = -1
                 return success_code
@@ -146,13 +127,13 @@ class WeatherFunc:
             return success_code
 
         success_code = self.add_to_object(weather_obj)
+        success_code = self.data_cleanup()
+        print(self.weather_data)
         if success_code == -1:
             print(f"Unknown error. Cannot get weather.")
             return success_code
-        if success_code == 1:
+        elif success_code == 1:
             print(f"Possible issue in data collection...")
-            return success_code
-
         # self.after(600000, self.get_weather)
         return success_code
 
@@ -171,32 +152,83 @@ class WeatherFunc:
         self.config_update()
         self.get_weather()
 
-    def modify_icon(self) -> None:
+    def data_cleanup(self) -> int:
         '''
-        Modify current and forecasted weather to combine descriptions and to choose one icon
-
+        Modify current and forecasted weather to combine/simplify descriptions
         Parameters
         ----------
         self : (WeatherFunc object) containing weather data
 
         Return
         ------
-        None
+        success_code : (int) code 0 for successful request and update, -1 for bad request, 1 for missing data
         '''
-        pass
-                # if icon2 is not None:
-            #     if self.icon != icon2:
-            #         self.icon = icon2
-            #         image = Image.open(icon2)
-            #         image = image.resize((100, 100), Image.ANTIALIAS)
-            #         image = image.convert('RGB')
-            #         photo = ImageTk.PhotoImage(image)
-
-            #         self.iconLbl.config(image=photo)
-            #         self.iconLbl.image = photo
-            # else:
-            #     # remove image
-            #     self.iconLbl.config(image='')
+        success_code = 0
+        try:
+            # current - weather: choose primary icon and combine all descriptions,
+            #         - dt: convert utc unix time into string representation (with day of week),
+            #         - sunrise: convert utc unix time into string representation (keep hour and min only),
+            #         - sunset: convert utc unix time into string representation (keep hour and min only)
+            #         - temp, feels_like: convert to string and add degree sign
+            #         - humidity: convert to string and add percent sign
+            #         - visibility: convert to string and convert to km (show units)
+            #         - wind_speed: convert to string and convert to km/hr (show units)
+            self.weather_data['current']['weather'] = {
+                'icon':self.weather_data['current']['weather'][0]['icon'], 
+                'description':', '.join(
+                    [condition['description'] for condition in self.weather_data['current']['weather']]
+                    )
+                }
+            self.weather_data['current']['temp'] =  str(self.weather_data['current']['temp'])+DEGREE_SYMBOL
+            self.weather_data['current']['feels_like'] =  str(self.weather_data['current']['feels_like'])+DEGREE_SYMBOL
+            self.weather_data['current']['humidity'] =  str(self.weather_data['current']['humidity'])+'%'
+            self.weather_data['current']['visibility'] =  str(self.weather_data['current']['visibility']/1000)+' km'
+            self.weather_data['current']['wind_speed'] =  str(self.weather_data['current']['wind_speed']*3600/1000)+' km/hr'
+            self.weather_data['current']['dt'] = WeatherFunc.reformat_time(self.weather_data['current']['dt'], '%A %B %d %Y')
+            self.weather_data['current']['sunrise'] = WeatherFunc.reformat_time(self.weather_data['current']['sunrise'], '%H:%M')
+            self.weather_data['current']['sunset'] = WeatherFunc.reformat_time(self.weather_data['current']['sunset'], '%H:%M')
+        except KeyError:
+            print('current-weather might be missing data')
+            success_code = 1
+        except Exception as e2:
+            print (f"New error! {e2} @ current-weather")
+            success_code = -1
+        
+        # daily - feels_like: choose day temp for each day, 
+        #       - temp: choose day temp for each day, 
+        #       - weather: choose primary icon and combine all descriptions for each day
+        #       - dt: convert utc unix time into string representation (keep day of week and number only)
+        #       - temp, feels_like: convert to string and add degree sign
+        for day in range(len(self.weather_data['daily'])):
+            try:
+                self.weather_data['daily'][day]['dt'] = WeatherFunc.reformat_time(self.weather_data['daily'][day]['dt'], '%a %d')
+                self.weather_data['daily'][day]['temp'] = str(self.weather_data['daily'][day]['temp']['day'])+DEGREE_SYMBOL
+                self.weather_data['daily'][day]['feels_like'] = str(self.weather_data['daily'][day]['feels_like']['day'])+DEGREE_SYMBOL
+                self.weather_data['daily'][day]['weather'] = {
+                    'icon': self.weather_data['daily'][day]['weather'][0]['icon'], 
+                    'description':', '.join(
+                        [condition['description'] for condition in self.weather_data['daily'][day]['weather']]
+                    )
+                }
+            except KeyError:
+                print(f'daily-temp,feels_like or weather @ index {day} might be missing data')
+                success_code = 1
+            except Exception as e2:
+                print (f"New error! {e2} @ index {day} for daily-temp,feels_like or weather")
+                success_code = -1
+        # alerts : - start: convert utc unix time into string representation
+        #          - end: convert utc unix time into string representation
+        for alert in range(len(self.weather_data['alerts'])):
+            try:
+                self.weather_data['alerts'][alert]['start'] = WeatherFunc.reformat_time(self.weather_data['alerts'][alert]['start'], '%a %b %d %Y %H:%M:%S')
+                self.weather_data['alerts'][alert]['end'] = WeatherFunc.reformat_time(self.weather_data['alerts'][alert]['end'], '%a %b %d %Y %H:%M:%S')
+            except KeyError:
+                print(f'alerts-start or end @ index {alert} might be missing data')
+                success_code = 1
+            except Exception as e2:
+                print (f"New error! {e2} @ index {alert} for alerts-start or end")
+                success_code = -1
+        return success_code
 
     def add_to_object(self, weather_obj:dict) -> int:
         '''
@@ -213,27 +245,32 @@ class WeatherFunc:
         '''
         success_code = 0
         for mainkey in MAIN_KEYS:
-            for key in self.weather_data[mainkey]:
+            if mainkey != 'current':
                 try:
-                    data = weather_obj[mainkey][key]
-                    if len(data) == 0:
-                        print(f"No data @ {mainkey}:{key}")
-                    else:
-                        self.weather_data[mainkey][key] = data
-                except KeyError as e:
-                    print('API call failed or key has no data')
-                    print(f'Error {e} @ {mainkey}:{key}')
+                    self.weather_data[mainkey] = [{k:v for k,v in day.items() if k in ['temp','feels_like','weather','dt', 'event','start','end']} for day in weather_obj[mainkey]]
+                except KeyError:
+                    print(f'{mainkey} might be missing data')
                     success_code = 1
                     continue
                 except Exception as e2:
-                    print (f"New error! {e2} @ {mainkey}:{key}")
+                    print (f"New error! {e2} @ {mainkey}")
+                    success_code = -1
+            else:
+                try:
+                    self.weather_data[mainkey] = {k:v for k,v in weather_obj[mainkey].items() if k in self.weather_data[mainkey]}
+                except KeyError:
+                    print(f'{mainkey} might be missing data')
+                    success_code = 1
+                    continue
+                except Exception as e2:
+                    print (f"New error! {e2} @ {mainkey}")
                     success_code = -1
         return success_code
-            
 
 def local_test():
     w: WeatherFunc = WeatherFunc()
     w.ask_weather()
+    print(WeatherFunc.reformat_time(1609296052, '%a %d'))
     del w
 
 if __name__ == "__main__":
