@@ -11,6 +11,8 @@ medium_text_size = 28
 small_text_size = 18
 xsmall_text_size = 8
 BG_COLOR = 'black'#'#D9B382'
+FORECAST_IMG = (100,100)
+CURRENT_IMG = (200,200)
 
 class WeatherFunc(Frame):
     ''' Creates and maintains the weather module on the smart mirror '''
@@ -100,7 +102,7 @@ class WeatherFunc(Frame):
         return full_formatted_time.strftime(final_format)
 
     @staticmethod
-    def get_image(pic_ID:str, s:tuple=(200,200)) -> Image:
+    def get_image(pic_ID:str, s:tuple=FORECAST_IMG) -> Image:
 
         # root = Tk()
         # root.title("display a website image")
@@ -217,7 +219,7 @@ class WeatherFunc(Frame):
             #         - wind_speed: convert to string and convert to km/hr (show units)
 
             self.weather_data['current']['weather'] = {
-                'icon': WeatherFunc.get_image(self.weather_data['current']['weather'][0]['icon']), 
+                'icon': WeatherFunc.get_image(self.weather_data['current']['weather'][0]['icon'], CURRENT_IMG), 
                 'description':', '.join(
                     [condition['description'] for condition in self.weather_data['current']['weather']]
                 )
@@ -347,37 +349,51 @@ class ForecastDisplay:
         Feels   Feels   Feels   Feels   Feels
     '''
     def __init__(self):
-        # Frame.__init__(self, parent, bg='black')
 
         # assume 7 days of forecast info
         self.days = {
-            'day1':{'root':None, 'obj':None},
-            'day2':{'root':None, 'obj':None},
-            'day3':{'root':None, 'obj':None},
-            'day4':{'root':None, 'obj':None},
-            'day5':{'root':None, 'obj':None},
-            'day6':{'root':None, 'obj':None},
-            'day7':{'root':None, 'obj':None}
+            'day1':None,
+            'day2':None,
+            'day3':None,
+            'day4':None,
+            'day5':None,
+            'day6':None,
+            'day7':None
         }
 
     def populate_days(self, root, data):
         for d in range(len(data)):
-            self.days['day'+str(d+1)]['root'] = Label(self, bg='pink')
-            self.days['day'+str(d+1)]['root'].pack(side=LEFT, padx=50)
-            self.days['day'+str(d+1)]['obj'] = WeatherPanel(self.days['day'+str(d+1)]['root'])
-            self.days['day'+str(d+1)]['obj'].dataloader(data[d])
+            self.days['day'+str(d+1)] = WeatherPanel(root, d+1, 1)
+            self.days['day'+str(d+1)].dataloader(data[d])
 class WeatherPanel:
-    def __init__(self, master):
-        self.day = Label(master, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
-        self.pic = Label(master, bg=BG_COLOR)
-        self.desc = Label(master, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
-        self.temp = Label(master, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
-        self.feels_like = Label(master, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+    def __init__(self, parent, col_pos, row_pos):
+        self.root = Frame(parent, bg=BG_COLOR)
+        self.root.grid(column=col_pos, row=row_pos, sticky=(N, W, E, S))
+
+        self.day = Label(self.root, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.day.grid(column=1, row=1, sticky=(N))
+        
+        self.pic = Label(self.root, bg=BG_COLOR)
+        self.pic.grid(column=1, row=2, sticky=(N))
+
+        self.desc = Label(self.root, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.desc.grid(column=1, row=3, sticky=(N))
+
+        self.temp = Label(self.root, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.temp.grid(column=1, row=4, sticky=(N))
+
+        self.feels_like = Label(self.root, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.feels_like.grid(column=1, row=5, sticky=(N))
+
     def dataloader(self,data):
         self.day.config(text= data['dt'])
+        
         self.desc.config(text=data['weather']['description'])
+        
         self.temp.config(text=data['temp'])
+
         self.feels_like.config(text=data['feels_like'])
+
         img = data['weather']['icon']
         if img is None:
             img = WeatherFunc.get_image('XXX', (200,200))
@@ -389,11 +405,14 @@ def test_table():
     data = pickle.load(open("data.pickle","rb"))['daily']
     print(data)
     win = Tk()
-    win.title("Label Screen")
-    win.geometry("800x600+50+50")
-    win.config(bg=BG_COLOR)
+    win.columnconfigure(0, weight=1)
+    win.rowconfigure(0, weight=1)
     fd = ForecastDisplay()
-    fd.populate_days(win,data)
+    fd.populate_days(win, data)
+    # panel = WeatherPanel(win, 1, 1)
+    # panel.dataloader(data[0])
+    # panel2 = WeatherPanel(win, 2, 1)
+    # panel2.dataloader(data[1])
     win.mainloop()
 
 def local_test():
