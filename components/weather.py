@@ -9,7 +9,8 @@ xlarge_text_size = 94
 large_text_size = 48
 medium_text_size = 28
 small_text_size = 18
-BG_COLOR = '#D9B382'
+xsmall_text_size = 8
+BG_COLOR = 'black'#'#D9B382'
 
 class WeatherFunc(Frame):
     ''' Creates and maintains the weather module on the smart mirror '''
@@ -54,7 +55,7 @@ class WeatherFunc(Frame):
         self.temperatureLbl = Label(self.degreeFrm, font=('Helvetica', xlarge_text_size), fg="white", bg="black")
         self.temperatureLbl.pack(side=LEFT, anchor=N)
         self.iconLbl = Label(self.degreeFrm, bg=BG_COLOR)
-        self.iconLbl.pack(side=LEFT, anchor=N, padx=20)
+        self.iconLbl.pack(side=LEFT, anchor=N)
         self.currentlyLbl = Label(self, font=('Helvetica', medium_text_size), fg="white", bg="black")
         self.currentlyLbl.pack(side=TOP, anchor=W)
         # self.forecastLbl = Label(self, font=('Helvetica', small_text_size), fg="white", bg="black")
@@ -99,7 +100,7 @@ class WeatherFunc(Frame):
         return full_formatted_time.strftime(final_format)
 
     @staticmethod
-    def get_image(pic_ID:str, s:tuple=(100,100)) -> Image:
+    def get_image(pic_ID:str, s:tuple=(200,200)) -> Image:
 
         # root = Tk()
         # root.title("display a website image")
@@ -163,8 +164,7 @@ class WeatherFunc(Frame):
             return success_code
 
         success_code = self.add_to_object(weather_obj)
-        print(self.weather_data)
-        
+
         if success_code == -1:
             print(f"Unknown error. Cannot get weather.")
             return success_code
@@ -222,11 +222,11 @@ class WeatherFunc(Frame):
                     [condition['description'] for condition in self.weather_data['current']['weather']]
                 )
             }
-            self.weather_data['current']['temp'] =  str(self.weather_data['current']['temp'])+DEGREE_SYMBOL
-            self.weather_data['current']['feels_like'] =  str(self.weather_data['current']['feels_like'])+DEGREE_SYMBOL
-            self.weather_data['current']['humidity'] =  str(self.weather_data['current']['humidity'])+'%'
-            self.weather_data['current']['visibility'] =  str(self.weather_data['current']['visibility']/1000)+' km'
-            self.weather_data['current']['wind_speed'] =  str(self.weather_data['current']['wind_speed']*3600/1000)+' km/hr'
+            self.weather_data['current']['temp'] =  str(round(self.weather_data['current']['temp']))+DEGREE_SYMBOL
+            self.weather_data['current']['feels_like'] =  str(round(self.weather_data['current']['feels_like']))+DEGREE_SYMBOL
+            self.weather_data['current']['humidity'] =  str(round(self.weather_data['current']['humidity']))+'%'
+            self.weather_data['current']['visibility'] =  str(round(self.weather_data['current']['visibility']/1000))+' km'
+            self.weather_data['current']['wind_speed'] =  str(round(self.weather_data['current']['wind_speed']*3600/1000))+' km/hr'
             self.weather_data['current']['dt'] = WeatherFunc.reformat_time(self.weather_data['current']['dt'], '%A %B %d %Y')
             self.weather_data['current']['sunrise'] = WeatherFunc.reformat_time(self.weather_data['current']['sunrise'], '%H:%M')
             self.weather_data['current']['sunset'] = WeatherFunc.reformat_time(self.weather_data['current']['sunset'], '%H:%M')
@@ -237,16 +237,18 @@ class WeatherFunc(Frame):
             print (f"New error! {e2} @ current-weather")
             success_code = -1
         
-        # daily - feels_like: choose day temp for each day, 
+        # daily - remove [0] entry (current day)
+        #       - feels_like: choose day temp for each day, 
         #       - temp: choose day temp for each day, 
         #       - weather: choose primary icon image and combine all descriptions for each day
-        #       - dt: convert utc unix time into string representation (keep day of week and number only)
+        #       - dt: convert utc unix time into string representation (day of week only)
         #       - temp, feels_like: convert to string and add degree sign
+        self.weather_data['daily'] = self.weather_data['daily'][1:]
         for day in range(len(self.weather_data['daily'])):
             try:
-                self.weather_data['daily'][day]['dt'] = WeatherFunc.reformat_time(self.weather_data['daily'][day]['dt'], '%a %d')
-                self.weather_data['daily'][day]['temp'] = str(self.weather_data['daily'][day]['temp']['day'])+DEGREE_SYMBOL
-                self.weather_data['daily'][day]['feels_like'] = str(self.weather_data['daily'][day]['feels_like']['day'])+DEGREE_SYMBOL
+                self.weather_data['daily'][day]['dt'] = WeatherFunc.reformat_time(self.weather_data['daily'][day]['dt'], '%a')
+                self.weather_data['daily'][day]['temp'] = str(round(self.weather_data['daily'][day]['temp']['day']))+DEGREE_SYMBOL
+                self.weather_data['daily'][day]['feels_like'] = str(round(self.weather_data['daily'][day]['feels_like']['day']))+DEGREE_SYMBOL
                 self.weather_data['daily'][day]['weather'] = {
                     'icon': WeatherFunc.get_image(self.weather_data['daily'][day]['weather'][0]['icon']), 
                     'description':', '.join(
@@ -311,17 +313,15 @@ class WeatherFunc(Frame):
         return success_code
 
     def create_visual(self) -> None:
-        img = None#self.weather_data['current']['weather']['icon']
+        img = self.weather_data['current']['weather']['icon']
         if img is None:
-            img = WeatherFunc.get_image('XXX', (300,500))
+            img = WeatherFunc.get_image('XXX', (200,200))
         photo = ImageTk.PhotoImage(img)
         self.iconLbl.config(image=photo)
         self.iconLbl.image = photo
 
         self.currentlyLbl.config(text=self.weather_data['current']['dt'])
-        # if self.forecast != forecast2:
-        #     self.forecast = forecast2
-        #     self.forecastLbl.config(text=forecast2)
+        # self.forecastLbl.config(text=forecast2)
         self.temperatureLbl.config(text=self.weather_data['current']['temp'])
         # if self.location != location2:
         #     if location2 == ", ":
@@ -338,13 +338,71 @@ class WeatherFunc(Frame):
         self.weather_data = pickle.load(open("data.pickle","rb"))
         print(self.weather_data)
 
+class ForecastDisplay:
+    '''
+        Wed    Thurs    Fri     Sat     Sun ...
+        Pic     Pic     Pic     Pic     Pic
+        Desc    Desc    Desc    Desc    Desc
+        Temp    Temp    Temp    Temp    Temp
+        Feels   Feels   Feels   Feels   Feels
+    '''
+    def __init__(self):
+        # Frame.__init__(self, parent, bg='black')
+
+        # assume 7 days of forecast info
+        self.days = {
+            'day1':{'root':None, 'obj':None},
+            'day2':{'root':None, 'obj':None},
+            'day3':{'root':None, 'obj':None},
+            'day4':{'root':None, 'obj':None},
+            'day5':{'root':None, 'obj':None},
+            'day6':{'root':None, 'obj':None},
+            'day7':{'root':None, 'obj':None}
+        }
+
+    def populate_days(self, root, data):
+        for d in range(len(data)):
+            self.days['day'+str(d+1)]['root'] = Label(self, bg='pink')
+            self.days['day'+str(d+1)]['root'].pack(side=LEFT, padx=50)
+            self.days['day'+str(d+1)]['obj'] = WeatherPanel(self.days['day'+str(d+1)]['root'])
+            self.days['day'+str(d+1)]['obj'].dataloader(data[d])
+class WeatherPanel:
+    def __init__(self, master):
+        self.day = Label(master, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.pic = Label(master, bg=BG_COLOR)
+        self.desc = Label(master, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.temp = Label(master, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.feels_like = Label(master, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+    def dataloader(self,data):
+        self.day.config(text= data['dt'])
+        self.desc.config(text=data['weather']['description'])
+        self.temp.config(text=data['temp'])
+        self.feels_like.config(text=data['feels_like'])
+        img = data['weather']['icon']
+        if img is None:
+            img = WeatherFunc.get_image('XXX', (200,200))
+        photo = ImageTk.PhotoImage(img)
+        self.pic.config(image=photo)
+        self.pic.image = photo
+
+def test_table():
+    data = pickle.load(open("data.pickle","rb"))['daily']
+    print(data)
+    win = Tk()
+    win.title("Label Screen")
+    win.geometry("800x600+50+50")
+    win.config(bg=BG_COLOR)
+    fd = ForecastDisplay()
+    fd.populate_days(win,data)
+    win.mainloop()
 
 def local_test():
     # w: WeatherFunc = WeatherFunc()
     # w.ask_weather()
     # print(WeatherFunc.reformat_time(1609296052, '%a %d'))
-    WeatherFunc.get_image('04d')
+    # WeatherFunc.get_image('04d')
     # del w
+    pass
 
 if __name__ == "__main__":
-    local_test()
+    test_table()
