@@ -1,6 +1,6 @@
 # import modules
 from tkinter import *  
-import requests, json, traceback, datetime, pytz
+import requests, json, traceback, datetime, pytz, pickle
 from PIL import Image, ImageTk
 
 DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
@@ -9,11 +9,12 @@ xlarge_text_size = 94
 large_text_size = 48
 medium_text_size = 28
 small_text_size = 18
+BG_COLOR = '#D9B382'
 
-class WeatherFunc:#(Frame):
+class WeatherFunc(Frame):
     ''' Creates and maintains the weather module on the smart mirror '''
     
-    def __init__(self):#, parent, *args, **kwargs):
+    def __init__(self, parent, *args, **kwargs):
         '''
         Initialize object parameters in prep to be updated with other methods
         
@@ -25,7 +26,7 @@ class WeatherFunc:#(Frame):
         ------
         None
         '''
-        # Frame.__init__(self, parent, bg='black')
+        Frame.__init__(self, parent, bg='black')
         self.location = ''
         self.apikey = ''
         self.units = ''
@@ -48,14 +49,14 @@ class WeatherFunc:#(Frame):
 
         self.weather_data['alerts'] = []
 
-        # self.degreeFrm = Frame(self, bg="black")
-        # self.degreeFrm.pack(side=TOP, anchor=W)
-        # self.temperatureLbl = Label(self.degreeFrm, font=('Helvetica', xlarge_text_size), fg="white", bg="black")
-        # self.temperatureLbl.pack(side=LEFT, anchor=N)
-        # self.iconLbl = Label(self.degreeFrm, bg="black")
-        # self.iconLbl.pack(side=LEFT, anchor=N, padx=20)
-        # self.currentlyLbl = Label(self, font=('Helvetica', medium_text_size), fg="white", bg="black")
-        # self.currentlyLbl.pack(side=TOP, anchor=W)
+        self.degreeFrm = Frame(self, bg=BG_COLOR)
+        self.degreeFrm.pack(side=TOP, anchor=W)
+        self.temperatureLbl = Label(self.degreeFrm, font=('Helvetica', xlarge_text_size), fg="white", bg="black")
+        self.temperatureLbl.pack(side=LEFT, anchor=N)
+        self.iconLbl = Label(self.degreeFrm, bg=BG_COLOR)
+        self.iconLbl.pack(side=LEFT, anchor=N, padx=20)
+        self.currentlyLbl = Label(self, font=('Helvetica', medium_text_size), fg="white", bg="black")
+        self.currentlyLbl.pack(side=TOP, anchor=W)
         # self.forecastLbl = Label(self, font=('Helvetica', small_text_size), fg="white", bg="black")
         # self.forecastLbl.pack(side=TOP, anchor=W)
         # self.locationLbl = Label(self, font=('Helvetica', small_text_size), fg="white", bg="black")
@@ -98,7 +99,7 @@ class WeatherFunc:#(Frame):
         return full_formatted_time.strftime(final_format)
 
     @staticmethod
-    def get_image(pic_ID:str) -> Image:
+    def get_image(pic_ID:str, s:tuple=(100,100)) -> Image:
 
         # root = Tk()
         # root.title("display a website image")
@@ -109,10 +110,12 @@ class WeatherFunc:#(Frame):
         # y = 100
         # # use width x height + x_offset + y_offset (no spaces!)
         # root.geometry("%dx%d+%d+%d" % (w, h, x, y))
-
-        response = requests.get(f"http://openweathermap.org/img/wn/{pic_ID}@2x.png", stream=True)
+        if pic_ID is not 'XXX':
+            response = requests.get(f"http://openweathermap.org/img/wn/{pic_ID}@2x.png", stream=True)
+        else:
+            response = requests.get("https://tce-live2.s3.amazonaws.com/media/media/thumbnails/da1aa98a-4de3-42e2-bbef-9a734c03ff5e.jpg", stream=True)
         image = Image.open(response.raw)
-        image = image.resize((100, 100), Image.ANTIALIAS)
+        image = image.resize(s, Image.ANTIALIAS)
         # image = image.convert('1')
         # photo = ImageTk.PhotoImage(image)
         # self.iconLbl.config(image=photo)
@@ -160,8 +163,8 @@ class WeatherFunc:#(Frame):
             return success_code
 
         success_code = self.add_to_object(weather_obj)
-        success_code = self.data_cleanup()
         print(self.weather_data)
+        
         if success_code == -1:
             print(f"Unknown error. Cannot get weather.")
             return success_code
@@ -183,7 +186,13 @@ class WeatherFunc:#(Frame):
         None
         '''
         self.config_update()
-        self.get_weather()
+        if input('Load?')=='Y':
+            self.load_data()
+        else:
+            self.get_weather()
+            self.data_cleanup()
+            self.save_data()
+        self.create_visual()
 
     def data_cleanup(self) -> int:
         '''
@@ -300,6 +309,35 @@ class WeatherFunc:#(Frame):
                     print (f"New error! {e2} @ {mainkey}")
                     success_code = -1
         return success_code
+
+    def create_visual(self) -> None:
+        img = None#self.weather_data['current']['weather']['icon']
+        if img is None:
+            img = WeatherFunc.get_image('XXX', (300,500))
+        photo = ImageTk.PhotoImage(img)
+        self.iconLbl.config(image=photo)
+        self.iconLbl.image = photo
+
+        self.currentlyLbl.config(text=self.weather_data['current']['dt'])
+        # if self.forecast != forecast2:
+        #     self.forecast = forecast2
+        #     self.forecastLbl.config(text=forecast2)
+        self.temperatureLbl.config(text=self.weather_data['current']['temp'])
+        # if self.location != location2:
+        #     if location2 == ", ":
+        #         self.location = "Cannot Pinpoint Location"
+        #         self.locationLbl.config(text="Cannot Pinpoint Location")
+        #     else:
+        #         self.location = location2
+        #         self.locationLbl.config(text=location2)
+
+    def save_data(self):
+        pickle.dump(self.weather_data, open("data.pickle","wb"),pickle.HIGHEST_PROTOCOL)
+
+    def load_data(self):
+        self.weather_data = pickle.load(open("data.pickle","rb"))
+        print(self.weather_data)
+
 
 def local_test():
     # w: WeatherFunc = WeatherFunc()

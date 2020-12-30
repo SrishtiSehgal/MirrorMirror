@@ -23,6 +23,7 @@ class FullscreenWindow:
         # weather
         self.weather = WeatherFunc(self.topFrame)
         self.weather.pack(side=LEFT, anchor=N, padx=100, pady=60)
+        self.weather.ask_weather()
         
         # news
         # self.news = News(self.bottomFrame)
