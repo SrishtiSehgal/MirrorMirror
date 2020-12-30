@@ -2,17 +2,18 @@
 from tkinter import *  
 import requests, json, traceback, datetime, pytz
 from PIL import Image, ImageTk
-from collections import defaultdict
 
 DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
 MAIN_KEYS = ['current','daily','alerts']
-# class WeatherFunc(Frame):
-class WeatherFunc:
+xlarge_text_size = 94
+large_text_size = 48
+medium_text_size = 28
+small_text_size = 18
+
+class WeatherFunc:#(Frame):
     ''' Creates and maintains the weather module on the smart mirror '''
     
-    # def __init__(self, parent, *args, **kwargs):
-        # Frame.__init__(self, parent, bg='black')
-    def __init__(self):
+    def __init__(self):#, parent, *args, **kwargs):
         '''
         Initialize object parameters in prep to be updated with other methods
         
@@ -24,6 +25,7 @@ class WeatherFunc:
         ------
         None
         '''
+        # Frame.__init__(self, parent, bg='black')
         self.location = ''
         self.apikey = ''
         self.units = ''
@@ -95,6 +97,37 @@ class WeatherFunc:
         full_formatted_time = datetime.datetime.utcfromtimestamp(int(unix_utc)).replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
         return full_formatted_time.strftime(final_format)
 
+    @staticmethod
+    def get_image(pic_ID:str) -> Image:
+
+        # root = Tk()
+        # root.title("display a website image")
+        # a little more than width and height of image
+        # w = 200
+        # h = 200
+        # x = 80
+        # y = 100
+        # # use width x height + x_offset + y_offset (no spaces!)
+        # root.geometry("%dx%d+%d+%d" % (w, h, x, y))
+
+        response = requests.get(f"http://openweathermap.org/img/wn/{pic_ID}@2x.png", stream=True)
+        image = Image.open(response.raw)
+        image = image.resize((100, 100), Image.ANTIALIAS)
+        # image = image.convert('1')
+        # photo = ImageTk.PhotoImage(image)
+        # self.iconLbl.config(image=photo)
+        # self.iconLbl.image = photo
+
+        # create a white canvas
+        # cv = Canvas(bg='white')
+        # cv.pack(side='top', fill='both', expand='yes')
+
+        # put the image on the canvas with
+        # cv.create_image(10, 10, image=photo, anchor='nw') # create_image(xpos, ypos, image, anchor)
+        # root.mainloop()
+
+        return image
+
     def get_weather(self) -> int:
         '''
         Make a GET request using OpenWeatherMap API to gather current and future weather data
@@ -165,7 +198,7 @@ class WeatherFunc:
         '''
         success_code = 0
         try:
-            # current - weather: choose primary icon and combine all descriptions,
+            # current - weather: choose primary icon image and combine all descriptions,
             #         - dt: convert utc unix time into string representation (with day of week),
             #         - sunrise: convert utc unix time into string representation (keep hour and min only),
             #         - sunset: convert utc unix time into string representation (keep hour and min only)
@@ -173,12 +206,13 @@ class WeatherFunc:
             #         - humidity: convert to string and add percent sign
             #         - visibility: convert to string and convert to km (show units)
             #         - wind_speed: convert to string and convert to km/hr (show units)
+
             self.weather_data['current']['weather'] = {
-                'icon':self.weather_data['current']['weather'][0]['icon'], 
+                'icon': WeatherFunc.get_image(self.weather_data['current']['weather'][0]['icon']), 
                 'description':', '.join(
                     [condition['description'] for condition in self.weather_data['current']['weather']]
-                    )
-                }
+                )
+            }
             self.weather_data['current']['temp'] =  str(self.weather_data['current']['temp'])+DEGREE_SYMBOL
             self.weather_data['current']['feels_like'] =  str(self.weather_data['current']['feels_like'])+DEGREE_SYMBOL
             self.weather_data['current']['humidity'] =  str(self.weather_data['current']['humidity'])+'%'
@@ -196,7 +230,7 @@ class WeatherFunc:
         
         # daily - feels_like: choose day temp for each day, 
         #       - temp: choose day temp for each day, 
-        #       - weather: choose primary icon and combine all descriptions for each day
+        #       - weather: choose primary icon image and combine all descriptions for each day
         #       - dt: convert utc unix time into string representation (keep day of week and number only)
         #       - temp, feels_like: convert to string and add degree sign
         for day in range(len(self.weather_data['daily'])):
@@ -205,7 +239,7 @@ class WeatherFunc:
                 self.weather_data['daily'][day]['temp'] = str(self.weather_data['daily'][day]['temp']['day'])+DEGREE_SYMBOL
                 self.weather_data['daily'][day]['feels_like'] = str(self.weather_data['daily'][day]['feels_like']['day'])+DEGREE_SYMBOL
                 self.weather_data['daily'][day]['weather'] = {
-                    'icon': self.weather_data['daily'][day]['weather'][0]['icon'], 
+                    'icon': WeatherFunc.get_image(self.weather_data['daily'][day]['weather'][0]['icon']), 
                     'description':', '.join(
                         [condition['description'] for condition in self.weather_data['daily'][day]['weather']]
                     )
@@ -268,10 +302,11 @@ class WeatherFunc:
         return success_code
 
 def local_test():
-    w: WeatherFunc = WeatherFunc()
-    w.ask_weather()
-    print(WeatherFunc.reformat_time(1609296052, '%a %d'))
-    del w
+    # w: WeatherFunc = WeatherFunc()
+    # w.ask_weather()
+    # print(WeatherFunc.reformat_time(1609296052, '%a %d'))
+    WeatherFunc.get_image('04d')
+    # del w
 
 if __name__ == "__main__":
     local_test()
