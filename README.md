@@ -1,4 +1,8 @@
 # MirrorMirror
+
+![alt text](https://github.com/SrishtiSehgal/MirrorMirro/blob/main/Example.png?raw=true)
+
+
 # TODOs
 # -Add compliments module
 # -Add chatbot module? - look at Google Assistant API, or create own using audio-to-text
