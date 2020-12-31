@@ -1,6 +1,6 @@
 # MirrorMirror
 
-![alt text](https://github.com/SrishtiSehgal/MirrorMirro/blob/main/Example.png?raw=true)
+![alt text](https://github.com/SrishtiSehgal/MirrorMirror/blob/main/Example.png?raw=true)
 
 
 # TODOs
