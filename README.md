@@ -1,6 +1,6 @@
 # MirrorMirror
 
-[alt text](Example.png)
+[alt text](Example.PNG)
 
 
 # TODOs
