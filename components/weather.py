@@ -9,7 +9,7 @@ xlarge_text_size = 94
 large_text_size = 48
 medium_text_size = 28
 small_text_size = 18
-xsmall_text_size = 8
+xsmall_text_size = 10
 BG_COLOR = 'black'#'#D9B382'
 FORECAST_IMG = (100,100)
 CURRENT_IMG = (200,200)
@@ -53,11 +53,10 @@ class WeatherFunc:
         # weather module
         self.mainframe = Frame(parent, bg=BG_COLOR)
         self.mainframe.grid(column=1, row=1, sticky=(N, W, E, S))
-
-        # current temp submodule
         self.current = Frame(self.mainframe, bg=BG_COLOR)
         self.current.grid(column=1, row=1, sticky=(N, W))
-
+        
+        # current temp submodule
         self.current_temp = Label(self.current, font=('Helvetica', xlarge_text_size), fg="white", bg=BG_COLOR)
         self.current_temp.grid(column=1, row=1, sticky=(N), padx=50)
         self.current_icon = Label(self.current, bg=BG_COLOR)
@@ -77,6 +76,10 @@ class WeatherFunc:
         self.current_wind_speed = Label(self.current,  font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
         self.current_wind_speed.grid(column=5, row=3, sticky=(N))
     
+        # sunrise/sunset info
+        self.sun = Canvas(self.current, width=70, height=60, bg=BG_COLOR,  bd=0, highlightthickness=0, relief='ridge')
+        self.sun.grid(column=2, row=2, rowspan=2)
+
         # forecast submodule
         self.forecast = Frame(self.mainframe, bg=BG_COLOR)
         self.forecast.grid(column=1, row=5, sticky=(S))
@@ -356,6 +359,10 @@ class WeatherFunc:
         self.current_uvi.config(text='UV:'+str(self.weather_data['current']['uvi']))
         self.current_visibility.config(text='Visibility:'+self.weather_data['current']['visibility'])
         self.current_wind_speed.config(text='Wind Speed:'+self.weather_data['current']['wind_speed'])
+
+        l1 = self.sun.create_text(20, 20, text=self.weather_data['current']['sunrise'], font=("Purisa", xsmall_text_size), fill="orange", tag="l1")
+        l2 = self.sun.create_text(20, 40, text=self.weather_data['current']['sunset'], font=("Purisa", xsmall_text_size), fill="grey", tag="l2")
+        self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, self.sun.coords(l1)[0]*2, ( self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, fill="white")
 
         self.fd.populate_days(self.forecast, self.weather_data['daily'])
 
