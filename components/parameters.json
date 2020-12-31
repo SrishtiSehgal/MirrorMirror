@@ -1,8 +1,36 @@
 {
 "apikeys":
-    {"openweather":""},
+    {
+        "openweather":""
+    },
 "location":
-    {"lat":"45.4215", "long":"-75.6972"},
+    {
+        "lat":"45.4215", 
+        "long":"-75.6972"
+    },
 "display_type":
-    {"units":"metric"}
+    {
+        "units":"metric"
+    },
+"MAIN_KEYS": 
+        ["current","daily","alerts"],
+"font_size":
+    {
+        "xlarge_text_size": 94, 
+        "large_text_size" : 48, 
+        "medium_text_size": 28, 
+        "small_text_size" : 18, 
+        "xsmall_text_size" : 10
+    },
+"colors":
+    {
+        "BG_COLOR":"black",
+        "BG_COLOR2":"#D9B382",
+        "FG_COLOR":"white"
+    },
+"img_size":
+    {
+        "FORECAST_IMG" : [100,100], 
+        "CURRENT_IMG" : [150,150]
+    }
 }

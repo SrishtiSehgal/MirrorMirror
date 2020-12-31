@@ -4,35 +4,26 @@ import requests, json, traceback, datetime, pytz, pickle
 from PIL import Image, ImageTk
 
 DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
-MAIN_KEYS = ['current','daily','alerts']
-xlarge_text_size = 94
-large_text_size = 48
-medium_text_size = 28
-small_text_size = 18
-xsmall_text_size = 10
-BG_COLOR = 'black'#'#D9B382'
-FORECAST_IMG = (100,100)
-CURRENT_IMG = (200,200)
-
 class WeatherFunc:
     ''' Creates and maintains the weather module on the smart mirror '''
     
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent:Tk) -> None:
         '''
         Initialize object parameters in prep to be updated with other methods
         
         Parameters
         ----------
         self : (WeatherFunc object) containing parameters to initialize
+        parent : (Tk object) main window
         
         Return
         ------
         None
         '''
         
-        self.location = ''
-        self.apikey = ''
-        self.units = ''
+        # self.location = ''
+        # self.apikey = ''
+        # self.units = ''
 
         self.weather_data = {}
         self.weather_data['current'] = {
@@ -50,38 +41,40 @@ class WeatherFunc:
         self.weather_data['daily'] = []
         self.weather_data['alerts'] = []
 
+        self.config_update()
+
         # weather module
-        self.mainframe = Frame(parent, bg=BG_COLOR)
+        self.mainframe = Frame(parent, bg=self.BG_COLOR)
         self.mainframe.grid(column=1, row=1, sticky=(N, W, E, S))
-        self.current = Frame(self.mainframe, bg=BG_COLOR)
+        self.current = Frame(self.mainframe, bg=self.BG_COLOR)
         self.current.grid(column=1, row=1, sticky=(N, W))
         
         # current temp submodule
-        self.current_temp = Label(self.current, font=('Helvetica', xlarge_text_size), fg="white", bg=BG_COLOR)
+        self.current_temp = Label(self.current, font=('Helvetica', self.xlarge_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_temp.grid(column=1, row=1, sticky=(N), padx=50)
-        self.current_icon = Label(self.current, bg=BG_COLOR)
+        self.current_icon = Label(self.current, bg=self.BG_COLOR)
         self.current_icon.grid(column=2, row=1, sticky=(N,W,E,S))
-        self.current_feelslike = Label(self.current,  font=('Helvetica', int(medium_text_size*0.8)), fg="white", bg=BG_COLOR)
+        self.current_feelslike = Label(self.current,  font=('Helvetica', int(self.medium_text_size*0.8)), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_feelslike.grid(column=1, row=2, sticky=(N))
-        self.current_weather = Label(self.current,  font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.current_weather = Label(self.current,  font=('Helvetica', self.small_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_weather.grid(column=1, row=3, sticky=(N))
         
         # other current temp info submodule 
-        self.current_humidity = Label(self.current,  font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.current_humidity = Label(self.current,  font=('Helvetica', self.xsmall_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_humidity.grid(column=4, row=2, sticky=(N, W,S,E))
-        self.current_uvi = Label(self.current,  font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.current_uvi = Label(self.current,  font=('Helvetica', self.xsmall_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_uvi.grid(column=4, row=3, sticky=(N))
-        self.current_visibility = Label(self.current,  font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.current_visibility = Label(self.current,  font=('Helvetica', self.xsmall_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_visibility.grid(column=5, row=2, sticky=(N, W,S,E))
-        self.current_wind_speed = Label(self.current,  font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.current_wind_speed = Label(self.current,  font=('Helvetica', self.xsmall_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.current_wind_speed.grid(column=5, row=3, sticky=(N))
     
         # sunrise/sunset info
-        self.sun = Canvas(self.current, width=70, height=60, bg=BG_COLOR,  bd=0, highlightthickness=0, relief='ridge')
+        self.sun = Canvas(self.current, width=70, height=60, bg=self.BG_COLOR,  bd=0, highlightthickness=0, relief='ridge')
         self.sun.grid(column=2, row=2, rowspan=2)
 
         # forecast submodule
-        self.forecast = Frame(self.mainframe, bg=BG_COLOR)
+        self.forecast = Frame(self.mainframe, bg=self.BG_COLOR)
         self.forecast.grid(column=1, row=5, sticky=(S))
         self.fd = ForecastDisplay()
 
@@ -101,6 +94,16 @@ class WeatherFunc:
         self.location = config['location']
         self.units = config['display_type']['units']
         self.apikey = config['apikeys']['openweather']
+        self.FG_COLOR = config['colors']['FG_COLOR']
+        self.BG_COLOR = config['colors']['BG_COLOR']
+        self.xlarge_text_size = config['font_size']['xlarge_text_size']
+        self.large_text_size = config['font_size']['large_text_size']
+        self.medium_text_size= config['font_size']['medium_text_size']
+        self.small_text_size= config['font_size']['small_text_size']
+        self.xsmall_text_size= config['font_size']['xsmall_text_size']
+        self.MAIN_KEYS = config["MAIN_KEYS"]
+        self.CURRENT_IMG = config["img_size"]["CURRENT_IMG"]
+        self.FORECAST_IMG = config["img_size"]["FORECAST_IMG"]
 
     @staticmethod
     def reformat_time(unix_utc:str, final_format:str='%A %b %d %Y %I:%M:%S %p') -> str:
@@ -111,18 +114,28 @@ class WeatherFunc:
         ----------
         unix_utc : (str) unix UTC time
         final_format : (str) parameters indicating which parts of time related information to show 
-                (default = '%A %m %d %Y %H:%M:%S')
+                (default = '%A %b %d %Y %I:%M:%S %p')
                 'Y' - year, 'm'/'b'/'B' - month, 'd' - date, 'A'/'a' - day, 'H' - hour, 'M' - minute, 'S' - second
 
         Return
         ------
-        formatted_time : (string) time information shown as the partial or full form of '(day) DD-MM-YYYY HH:MM:SS'
+        full_formatted_time : (string) time information shown as the partial or full form of '(day) DD-MM-YYYY HH:MM:SS'
         '''
         full_formatted_time = datetime.datetime.utcfromtimestamp(int(unix_utc)).replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
         return full_formatted_time.strftime(final_format)
 
     @staticmethod
-    def get_image(pic_ID:str, s:tuple=FORECAST_IMG) -> Image:
+    def get_image(pic_ID:str, s:list=[100,100]) -> Image:
+        """ Retrieve image from openweathermap or provide default image if requested
+        Parameters
+        ----------
+        pic_ID : (str) ID of image to request
+        s : (list) size of image (default : [100,100])
+
+        Return
+        ------
+        image : (Image object) image of weather
+        """
 
         # root = Tk()
         # root.title("display a website image")
@@ -173,7 +186,7 @@ class WeatherFunc:
             r = requests.get(weather_req_url)
             weather_obj = json.loads(r.text)
 
-            if not all(key in weather_obj for key in MAIN_KEYS[:-1]): # not always an alert available
+            if not all(key in weather_obj for key in self.MAIN_KEYS[:-1]): # not always an alert available
                 print('API call failed')
                 success_code = -1
                 return success_code
@@ -207,7 +220,7 @@ class WeatherFunc:
         ------
         None
         '''
-        self.config_update()
+        # self.config_update()
         if False:#input('Load?')=='Y':
             self.load_data()
         else:
@@ -239,7 +252,7 @@ class WeatherFunc:
             #         - wind_speed: convert to string and convert to km/hr (show units)
 
             self.weather_data['current']['weather'] = {
-                'icon': WeatherFunc.get_image(self.weather_data['current']['weather'][0]['icon'], CURRENT_IMG), 
+                'icon': WeatherFunc.get_image(self.weather_data['current']['weather'][0]['icon'], self.CURRENT_IMG), 
                 'description':', '.join(
                     [condition['description'] for condition in self.weather_data['current']['weather']]
                 )
@@ -273,7 +286,7 @@ class WeatherFunc:
                 self.weather_data['daily'][day]['temp'] = str(round(self.weather_data['daily'][day]['temp']['day']))+DEGREE_SYMBOL
                 self.weather_data['daily'][day]['feels_like'] = str(round(self.weather_data['daily'][day]['feels_like']['day']))+DEGREE_SYMBOL
                 self.weather_data['daily'][day]['weather'] = {
-                    'icon': WeatherFunc.get_image(self.weather_data['daily'][day]['weather'][0]['icon']), 
+                    'icon': WeatherFunc.get_image(self.weather_data['daily'][day]['weather'][0]['icon'], self.FORECAST_IMG), 
                     'description':', '.join(
                         [condition['description'] for condition in self.weather_data['daily'][day]['weather']]
                     )
@@ -314,7 +327,7 @@ class WeatherFunc:
         success_code : (int) 0: no issues, 1: possible issue, -1: unhandled error 
         '''
         success_code = 0
-        for mainkey in MAIN_KEYS:
+        for mainkey in self.MAIN_KEYS:
             if mainkey != 'current':
                 try:
                     self.weather_data[mainkey] = [{k:v for k,v in day.items() if k in ['temp','feels_like','weather','dt', 'event','start','end']} for day in weather_obj[mainkey]]
@@ -338,6 +351,15 @@ class WeatherFunc:
         return success_code
 
     def create_visual(self) -> None:
+        """ Update Frame or Label objects with weather data for show
+        Parameters
+        ----------
+        self : (WeatherFunc object) contains weather data to show
+
+        Return
+        ------
+        None
+        """
         img = self.weather_data['current']['weather']['icon']
         if img is None:
             img = WeatherFunc.get_image('XXX', (200,200))
@@ -346,7 +368,7 @@ class WeatherFunc:
         right = 3*w/4
         upper = h/4
         lower = 3*h/4
-        img = img.crop([ left, upper, right, lower])
+        # img = img.crop([ left, upper, right, lower])
         photo = ImageTk.PhotoImage(img)
         self.current_icon.config(image=photo)
         self.current_icon.image = photo
@@ -360,19 +382,47 @@ class WeatherFunc:
         self.current_visibility.config(text='Visibility: '+self.weather_data['current']['visibility'])
         self.current_wind_speed.config(text='Wind Speed: '+self.weather_data['current']['wind_speed'])
 
-        l1 = self.sun.create_text(30, 20, text=self.weather_data['current']['sunrise'], font=("Purisa", xsmall_text_size), fill="orange", tag="l1")
-        l2 = self.sun.create_text(30, 40, text=self.weather_data['current']['sunset'], font=("Purisa", xsmall_text_size), fill="grey", tag="l2")
+        l1 = self.sun.create_text(30, 20, text=self.weather_data['current']['sunrise'], font=("Purisa", self.xsmall_text_size), fill="orange", tag="l1")
+        l2 = self.sun.create_text(30, 40, text=self.weather_data['current']['sunset'], font=("Purisa", self.xsmall_text_size), fill="grey", tag="l2")
         self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 - 3, self.sun.coords(l1)[0]*3, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 - 3, fill="orange")
         self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, self.sun.coords(l1)[0]*3, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, fill="white")
         self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 + 3, self.sun.coords(l1)[0]*3, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 + 3, fill="grey")
 
         self.fd.populate_days(self.forecast, self.weather_data['daily'])
 
-    def save_data(self):
+    def save_data(self) -> None:
+        """
+        To prevent multiple API calls while testing, save weather data
+
+        Parameters
+        ----------
+        self : (WeatherFunc) contains weather data
+
+        Return
+        ------
+        None
+        """
         pickle.dump(self.weather_data, open("data.pickle","wb"),pickle.HIGHEST_PROTOCOL)
 
-    def load_data(self):
-        self.weather_data = pickle.load(open("data.pickle","rb"))
+    def load_data(self)-> None:
+        """
+        To prevent multiple API calls while testing, load weather data
+
+        Parameters
+        ----------
+        self : (WeatherFunc) contains weather data
+
+        Return
+        ------
+        None
+        """
+        try:
+            self.weather_data = pickle.load(open("data.pickle","rb"))
+        except Exception as e:
+            print(e)
+            print("File cannot be loaded")
+            self.weather_data = None
+
         print(self.weather_data)
 class ForecastDisplay:
     '''
@@ -382,7 +432,16 @@ class ForecastDisplay:
         Temp    Temp    Temp    Temp    Temp
         Feels   Feels   Feels   Feels   Feels
     '''
-    def __init__(self):
+    def __init__(self)-> None:
+        """ Create an object to store WeatherPanels
+        Parameters
+        ----------
+        self : (ForecastDisplay object) stores panels of weather information (7 days min)
+
+        Return
+        ------
+        None
+        """
 
         # assume 7 days of forecast info
         self.days = {
@@ -395,31 +454,87 @@ class ForecastDisplay:
             'day7':None
         }
 
-    def populate_days(self, root, data):
+    def populate_days(self, root:Frame, data:list) -> None:
+        """ Fill in at least 7 days of data (as many in data)
+        Parameters
+        ----------
+        self : (ForecastDisplay object) holds panels objects
+        root : (Frame object) ensure that the panels are held in a single frame object
+        data : (list) contains dictionaries (one for each day) of weather information
+
+        Return
+        ------
+        None
+        """
         for d in range(len(data)):
             self.days['day'+str(d+1)] = WeatherPanel(root, d+1, 1)
             self.days['day'+str(d+1)].dataloader(data[d])
 class WeatherPanel:
-    def __init__(self, parent, col_pos, row_pos):
-        self.root = Frame(parent, bg=BG_COLOR)
+    """ Creates a panel/Frame object with information about a day's weather"""
+    def __init__(self, parent:Frame, col_pos:int, row_pos:int) -> None:
+        """ Generates Frame and Label objects inside the panel to store weather data
+        Parameters
+        ----------
+        self : (WeatherPanel object) frame/panel holding weather data
+        parent : (Frame object) the forecast display table as a frame object containing multiple weatherpanel objects
+        col_pos : (int) column position of panel on table
+        row_pos : (int) row position of panel on table
+
+        Returns
+        -------
+        None
+        """
+        self.config_update()
+        self.root = Frame(parent, bg=self.BG_COLOR)
         self.root.grid(column=col_pos, row=row_pos, sticky=(N, W, E, S))
 
-        self.day = Label(self.root, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.day = Label(self.root, font=('Helvetica', self.small_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.day.grid(column=1, row=1, sticky=(N))
         
-        self.pic = Label(self.root, bg=BG_COLOR)
+        self.pic = Label(self.root, bg=self.BG_COLOR)
         self.pic.grid(column=1, row=2, sticky=(N))
 
-        self.desc = Label(self.root, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.desc = Label(self.root, font=('Helvetica', self.xsmall_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.desc.grid(column=1, row=3, sticky=(N))
 
-        self.temp = Label(self.root, font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
+        self.temp = Label(self.root, font=('Helvetica', self.small_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.temp.grid(column=1, row=4, sticky=(N))
 
-        self.feels_like = Label(self.root, font=('Helvetica', xsmall_text_size), fg="white", bg=BG_COLOR)
+        self.feels_like = Label(self.root, font=('Helvetica', self.xsmall_text_size), fg=self.FG_COLOR, bg=self.BG_COLOR)
         self.feels_like.grid(column=1, row=5, sticky=(N))
 
-    def dataloader(self,data):
+    def config_update(self) -> None:
+        ''' Transfers relevant content from config file into object's parameters
+
+        Parameters
+        ----------
+        self : (WeatherPanel object) containing parameters to fill/update with weather data
+
+        Return
+        ------
+        None
+        '''
+        
+        config = json.load(open("./components/parameters.json", "rb"))
+        self.FG_COLOR = config['colors']['FG_COLOR']
+        self.BG_COLOR = config['colors']['BG_COLOR']
+        self.xlarge_text_size = config['font_size']['xlarge_text_size']
+        self.large_text_size = config['font_size']['large_text_size']
+        self.medium_text_size= config['font_size']['medium_text_size']
+        self.small_text_size= config['font_size']['small_text_size']
+        self.xsmall_text_size= config['font_size']['xsmall_text_size']
+    
+    def dataloader(self, data:dict)->None:
+        """ Updates panel parameters with weather data
+        Parameters
+        ----------
+        self : (WeatherPanel object) Frame object containing properties to store weather info
+        data : (dict) contains weather data
+
+        Returns
+        -------
+        None
+        """
         self.day.config(text= data['dt'])
         
         self.desc.config(text=data['weather']['description'])

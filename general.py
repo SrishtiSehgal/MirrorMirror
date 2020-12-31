@@ -6,7 +6,8 @@ from components.weather import WeatherFunc
 from components.clock import Clock
 
 class FullscreenWindow:
-    def __init__(self):
+    """ Creates application/interface for smart mirror"""
+    def __init__(self)->None:
         self.tk = Tk()
         self.tk.configure(background='black')
         # self.topFrame = Frame(self.tk, background = 'black')
