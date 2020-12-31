@@ -1,7 +1,5 @@
 # MirrorMirror
 # TODOs
-# -Add weather module
-# -Add time module
 # -Add compliments module
 # -Add chatbot module? - look at Google Assistant API, or create own using audio-to-text
 # -Add Youtube or spotify music module

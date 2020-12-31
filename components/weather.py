@@ -61,7 +61,7 @@ class WeatherFunc:
         self.current_temp.grid(column=1, row=1, sticky=(N), padx=50)
         self.current_icon = Label(self.current, bg=BG_COLOR)
         self.current_icon.grid(column=2, row=1, sticky=(N,W,E,S))
-        self.current_feelslike = Label(self.current,  font=('Helvetica', medium_text_size), fg="white", bg=BG_COLOR)
+        self.current_feelslike = Label(self.current,  font=('Helvetica', int(medium_text_size*0.8)), fg="white", bg=BG_COLOR)
         self.current_feelslike.grid(column=1, row=2, sticky=(N))
         self.current_weather = Label(self.current,  font=('Helvetica', small_text_size), fg="white", bg=BG_COLOR)
         self.current_weather.grid(column=1, row=3, sticky=(N))
@@ -103,7 +103,7 @@ class WeatherFunc:
         self.apikey = config['apikeys']['openweather']
 
     @staticmethod
-    def reformat_time(unix_utc:str, final_format:str='%A %b %d %Y %H:%M:%S') -> str:
+    def reformat_time(unix_utc:str, final_format:str='%A %b %d %Y %I:%M:%S %p') -> str:
         '''
         Convert unix UTC time into a datetime object
 
@@ -208,7 +208,7 @@ class WeatherFunc:
         None
         '''
         self.config_update()
-        if True:#input('Load?')=='Y':
+        if False:#input('Load?')=='Y':
             self.load_data()
         else:
             self.get_weather()
@@ -251,8 +251,8 @@ class WeatherFunc:
             self.weather_data['current']['visibility'] =  str(round(self.weather_data['current']['visibility']/1000))+' km'
             self.weather_data['current']['wind_speed'] =  str(round(self.weather_data['current']['wind_speed']*3600/1000))+' km/hr'
             self.weather_data['current']['dt'] = WeatherFunc.reformat_time(self.weather_data['current']['dt'], '%A %B %d %Y')
-            self.weather_data['current']['sunrise'] = WeatherFunc.reformat_time(self.weather_data['current']['sunrise'], '%H:%M')
-            self.weather_data['current']['sunset'] = WeatherFunc.reformat_time(self.weather_data['current']['sunset'], '%H:%M')
+            self.weather_data['current']['sunrise'] = WeatherFunc.reformat_time(self.weather_data['current']['sunrise'], '%I:%M %p')
+            self.weather_data['current']['sunset'] = WeatherFunc.reformat_time(self.weather_data['current']['sunset'], '%I:%M %p')
         except KeyError:
             print('current-weather might be missing data')
             success_code = 1
@@ -288,8 +288,8 @@ class WeatherFunc:
         #          - end: convert utc unix time into string representation
         for alert in range(len(self.weather_data['alerts'])):
             try:
-                self.weather_data['alerts'][alert]['start'] = WeatherFunc.reformat_time(self.weather_data['alerts'][alert]['start'], '%a %b %d %Y %H:%M:%S')
-                self.weather_data['alerts'][alert]['end'] = WeatherFunc.reformat_time(self.weather_data['alerts'][alert]['end'], '%a %b %d %Y %H:%M:%S')
+                self.weather_data['alerts'][alert]['start'] = WeatherFunc.reformat_time(self.weather_data['alerts'][alert]['start'], '%a %b %d %Y %I:%M:%S %p')
+                self.weather_data['alerts'][alert]['end'] = WeatherFunc.reformat_time(self.weather_data['alerts'][alert]['end'], '%a %b %d %Y %I:%M:%S %p')
             except KeyError:
                 print(f'alerts-start or end @ index {alert} might be missing data')
                 success_code = 1
@@ -352,17 +352,19 @@ class WeatherFunc:
         self.current_icon.image = photo
 
         self.current_temp.config(text=self.weather_data['current']['temp'])
-        self.current_feelslike.config(text=self.weather_data['current']['feels_like'])
+        self.current_feelslike.config(text='Feels like: ' + self.weather_data['current']['feels_like'])
         self.current_weather.config(text=self.weather_data['current']['weather']['description'])
 
-        self.current_humidity.config(text='Humidity:'+self.weather_data['current']['humidity'])
-        self.current_uvi.config(text='UV:'+str(self.weather_data['current']['uvi']))
-        self.current_visibility.config(text='Visibility:'+self.weather_data['current']['visibility'])
-        self.current_wind_speed.config(text='Wind Speed:'+self.weather_data['current']['wind_speed'])
+        self.current_humidity.config(text='Humidity: '+self.weather_data['current']['humidity'])
+        self.current_uvi.config(text='UV: '+str(self.weather_data['current']['uvi']))
+        self.current_visibility.config(text='Visibility: '+self.weather_data['current']['visibility'])
+        self.current_wind_speed.config(text='Wind Speed: '+self.weather_data['current']['wind_speed'])
 
-        l1 = self.sun.create_text(20, 20, text=self.weather_data['current']['sunrise'], font=("Purisa", xsmall_text_size), fill="orange", tag="l1")
-        l2 = self.sun.create_text(20, 40, text=self.weather_data['current']['sunset'], font=("Purisa", xsmall_text_size), fill="grey", tag="l2")
-        self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, self.sun.coords(l1)[0]*2, ( self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, fill="white")
+        l1 = self.sun.create_text(30, 20, text=self.weather_data['current']['sunrise'], font=("Purisa", xsmall_text_size), fill="orange", tag="l1")
+        l2 = self.sun.create_text(30, 40, text=self.weather_data['current']['sunset'], font=("Purisa", xsmall_text_size), fill="grey", tag="l2")
+        self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 - 3, self.sun.coords(l1)[0]*3, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 - 3, fill="orange")
+        self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, self.sun.coords(l1)[0]*3, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2, fill="white")
+        self.sun.create_line(0, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 + 3, self.sun.coords(l1)[0]*3, (self.sun.coords(l1)[1]+self.sun.coords(l2)[1])/2 + 3, fill="grey")
 
         self.fd.populate_days(self.forecast, self.weather_data['daily'])
 
@@ -372,7 +374,6 @@ class WeatherFunc:
     def load_data(self):
         self.weather_data = pickle.load(open("data.pickle","rb"))
         print(self.weather_data)
-
 class ForecastDisplay:
     '''
         Wed    Thurs    Fri     Sat     Sun ...
